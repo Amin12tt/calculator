@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .calculator {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: right;
+            word-wrap: break-word;
+            word-break: break-all;
+            min-height: 80px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            padding: 18px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        button:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .operator {
+            background: #667eea;
+            color: white;
+        }
+
+        .operator:hover {
+            background: #5568d3;
+        }
+
+        .equals {
+            background: #48bb78;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .equals:hover {
+            background: #38a169;
+        }
+
+        .clear {
+            background: #f56565;
+            color: white;
+            grid-column: span 2;
+        }
+
+        .clear:hover {
+            background: #e53e3e;
+        }
+
+        .error {
+            color: #f56565;
+            font-size: 16px;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .loading {
+            opacity: 0.6;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .display {
+                font-size: 28px;
+            }
+
+            button {
+                padding: 15px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calculator</h1>
+        <div class="calculator">
+            <div class="display" id="display">0</div>
+            <div class="buttons">
+                <button class="clear" onclick="clearDisplay()">AC</button>
+                <button class="operator" onclick="appendOperator('/')">&div;</button>
+                <button class="operator" onclick="appendOperator('*')">&times;</button>
+                
+                <button onclick="appendNumber('7')">7</button>
+                <button onclick="appendNumber('8')">8</button>
+                <button onclick="appendNumber('9')">9</button>
+                <button class="operator" onclick="appendOperator('-')">-</button>
+                
+                <button onclick="appendNumber('4')">4</button>
+                <button onclick="appendNumber('5')">5</button>
+                <button onclick="appendNumber('6')">6</button>
+                <button class="operator" onclick="appendOperator('+')">+</button>
+                
+                <button onclick="appendNumber('1')">1</button>
+                <button onclick="appendNumber('2')">2</button>
+                <button onclick="appendNumber('3')">3</button>
+                <button class="operator" onclick="appendOperator('**')">^</button>
+                
+                <button onclick="appendNumber('0')">0</button>
+                <button onclick="appendNumber('.')">.</button>
+                <button class="equals" onclick="calculate()">=</button>
+            </div>
+            <div class="error" id="error"></div>
+        </div>
+    </div>
+
+    <script>
+        let expression = '';
+        const displayElement = document.getElementById('display');
+        const errorElement = document.getElementById('error');
+
+        function appendNumber(num) {
+            expression += num;
+            updateDisplay();
+            clearError();
+        }
+
+        function appendOperator(op) {
+            if (expression === '') return;
+            if (['+', '-', '*', '/', '**'].some(o => expression.endsWith(o))) {
+                expression = expression.slice(0, -1);
+            }
+            expression += op;
+            updateDisplay();
+            clearError();
+        }
+
+        function clearDisplay() {
+            expression = '';
+            updateDisplay();
+            clearError();
+        }
+
+        function updateDisplay() {
+            displayElement.textContent = expression || '0';
+        }
+
+        function clearError() {
+            errorElement.textContent = '';
+        }
+
+        async function calculate() {
+            if (!expression) return;
+
+            try {
+                displayElement.classList.add('loading');
+                const response = await fetch('/api/calc', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ expression: expression })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showError(error.detail || 'Calculation failed');
+                    displayElement.classList.remove('loading');
+                    return;
+                }
+
+                const data = await response.json();
+                expression = data.result.toString();
+                updateDisplay();
+                clearError();
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                displayElement.classList.remove('loading');
+            }
+        }
+
+        function showError(message) {
+            errorElement.textContent = message;
+        }
+
+        // Keyboard support
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
+            if (e.key === '.') appendNumber('.');
+            if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/') {
+                e.preventDefault();
+                appendOperator(e.key);
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                calculate();
+            }
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                expression = expression.slice(0, -1);
+                updateDisplay();
+            }
+            if (e.key === 'Escape') {
+                clearDisplay();
+            }
+        });
+
+        // Initialize display
+        updateDisplay();
+    </script>
+</body>
+</html>
